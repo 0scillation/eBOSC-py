@@ -23,6 +23,7 @@ Created on Mon May 31 19:11:30 2021
 #    Copyright 2010 Jeremy B. Caplan, Adam M. Hughes, Tara A. Whitten
 #    and Clayton T. Dickson.
 import numpy as np
+import matplotlib.pyplot as plt
 
 def tf(eegsignal,F,Fsample,wavenumber):
 # [B,T,F]=BOSC_tf(eegsignal,F,Fsample,wavenumber);
@@ -99,9 +100,9 @@ def detect(b,powthresh,durthresh,Fsample):
       else:
           H=[] # all episode or none
     elif len(pos)==0:
-        H = np.asarray(([1],[neg])) # i.e., starts on an episode, then stops
+        H = np.asarray(([1],neg)) # i.e., starts on an episode, then stops
     elif len(neg)==0:
-        H = np.asarray(([pos],[nT])) # starts, then ends on an ep.
+        H = np.asarray((pos,[nT])) # starts, then ends on an ep.
     else:
       if pos[0]>neg[0]:
           pos=[1] + pos # we start with an episode
@@ -109,8 +110,8 @@ def detect(b,powthresh,durthresh,Fsample):
           neg=neg + [nT] # we end with an episode
       H = np.asarray((pos,neg)) # NOTE: by this time, length(pos)==length(neg), necessarily
     # special-casing, making the H double-vector
-    
-    if H.size != 0: # more than one "hole"
+    detected=np.zeros(b.shape)
+    if len(H) != 0: # more than one "hole"
                     # find epochs lasting longer than minNcycles*period
       goodep=list(np.where((H[1]-H[0])>=durthresh)[0])
       if len(goodep)==0:
@@ -118,13 +119,98 @@ def detect(b,powthresh,durthresh,Fsample):
       else:
           H=H[:,goodep] 
       # OR this onto the detected vector
-      detected=np.zeros(b.shape)
-      for h in range(H.shape[1]):
-          detected[H[0,h]:H[1,h]]=1
+      
+      if len(H) != 0 :
+          for h in range(H.shape[1]):
+              detected[H[0,h]:H[1,h]]=1
     # more than one "hole"
 
     return detected
 
+def tfWrapper(data,freqs,Fsample,wavenumber):
+     # trial,elec,freq,tp (1, 4, 41, 2561)
+     B = np.zeros((data.shape[0],data.shape[1],len(freqs),data.shape[2]))
+     for ielec in range(data.shape[1]):
+         for itrial in range(data.shape[0]):
+                eegsignal = data[itrial,ielec,:]
+                B[itrial,ielec,:,:] = tf(eegsignal,freqs,Fsample,wavenumber)
+     return B
+
+def suppFigure(freqs,eBOSC,ielec):
+    # Supplementary Figure: plot estimated background + power threshold
+    fig, ax = plt.subplots()
+    ax.plot(np.log10(freqs), np.log10(eBOSC['mp'][ielec,:]), 'k--',LineWidth = 1.5,label='Aperiodic fit'); 
+    ax.plot(np.log10(freqs),np.log10(eBOSC['pt'][ielec,:]), 'k-', LineWidth= 1.5,label='Statistical power threshold')
+    ax.plot(np.log10(freqs), eBOSC['bg_log10_pow'][ielec,:], 'r-', LineWidth= 2,label='Avg. spectrum')
+    ax.set_xlabel('Frequency (log10 Hz)')
+    ax.set_ylabel('Power (log 10 a.u.)')
+    # ax.set_xscale('log')
+    plt.legend(loc=1)
+    # plt.xticks([2,4,8,16,32,64],[2,4,8,16,32,64])
+    ax.grid(True, linestyle=':')
+    plt.rcParams.update({'font.size': 20})
+    
+    fig, ax = plt.subplots()
+    ax.plot(freqs, np.log10(eBOSC['mp'][ielec,:]), 'k--',LineWidth = 1.5,label='Aperiodic fit'); 
+    ax.plot(freqs,np.log10(eBOSC['pt'][ielec,:]), 'k-', LineWidth= 1.5,label='Statistical power threshold')
+    ax.plot(freqs, eBOSC['bg_log10_pow'][ielec,:], 'r-', LineWidth= 2,label='Avg. spectrum')
+    ax.set_xlabel('Frequency (Hz)')
+    ax.set_ylabel('Power (log 10 a.u.)')
+    # ax.set_xscale('log')
+    plt.legend(loc=1)
+    # plt.xticks([2,4,8,16,32,64],[2,4,8,16,32,64])
+    ax.grid(True, linestyle=':')
+    plt.rcParams.update({'font.size': 20})
+
+
+def thresholdWrapper(data,cfg):
+        # trial,elec,freq,tp (1, 4, 41, 2561)
+    bg_pow = np.zeros((data.shape[1],len(cfg['F'])))
+    bg_log10_pow = np.zeros((data.shape[1],len(cfg['F'])))
+    pv = np.zeros((data.shape[1],2))
+    mp = np.zeros((data.shape[1],len(cfg['F'])))
+    powerthres = np.zeros((data.shape[1],len(cfg['F'])))
+    durathres = np.zeros((data.shape[1],len(cfg['F'])))
+    
+    for ielec in range(data.shape[1]):
+        B = data[:,ielec,:,:]
+        eBOSC = [];
+        [eBOSC, pt, dt] = getThresholds(cfg, B);
+        bg_pow[ielec,:] = eBOSC['bg_pow']
+        bg_log10_pow[ielec,:] = eBOSC['bg_log10_pow']
+        pv[ielec,:] = eBOSC['pv']
+        mp[ielec,:] = eBOSC['mp']
+        powerthres[ielec,:] = eBOSC['pt']
+        durathres[ielec,:] = dt
+        
+        # overall wavelet power spectrum (NOT only background)
+    eBOSC['bg_pow']        = bg_pow
+    # log10-transformed wavelet power spectrum (NOT only background)
+    eBOSC['bg_log10_pow'] = bg_log10_pow
+    # intercept and slope parameters of the robust linear 1/f fit (log-log)
+    eBOSC['pv']            = pv
+    # linear background power at each estimated frequency
+    eBOSC['mp']          = mp
+    # statistical power threshold
+    eBOSC['pt']           = powerthres 
+    # duration threshold
+    eBOSC['dt']        = durathres 
+    eBOSC['fsample']  = cfg['fsample']
+    return eBOSC, powerthres, durathres
+
+def detectWrapper(data,eBOSC):
+    # trial,elec,freq,tp (24, 4, 41, 2561)
+    detected = np.zeros(data.shape)
+
+    for ielec in range(data.shape[1]):
+        pt = eBOSC['pt'][ielec,:]
+        dt = eBOSC['dt'][ielec,:]          
+        for itrial in range(data.shape[0]):
+            for ifreq in range(0,len(pt)):
+                b = data[itrial,ielec,ifreq,:]
+                detected[itrial,ielec,ifreq,:] = detect(b,pt[ifreq],dt[ifreq],eBOSC['fsample'])
+        
+    return detected
 #    This file is part of the extended Better OSCillation detection (eBOSC) library.
 #
 #    The eBOSC library is free software: you can redistribute it and/or modify
@@ -141,7 +227,7 @@ def detect(b,powthresh,durthresh,Fsample):
 #    along with Foobar.  If not, see <http://www.gnu.org/licenses/>.
 #
 #    Copyright 2020 Julian Q. Kosciessa, Thomas H. Grandy, Douglas D. Garrett & Markus Werkle-Bergner
-def getThresholds(cfg,TFR,eBOSC):
+def getThresholds(cfg,TFR):
 
 # This function estimates the static duration and power thresholds and
 # saves information regarding the overall spectrum and background.

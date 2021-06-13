@@ -8,12 +8,11 @@ Created on Tue Jun  1 17:54:08 2021
 #cross validation with matlab BOSC
 import numpy as np
 import matplotlib.pyplot as plt
-%matplotlib qt
-cd "C:/Users/Lemon/Documents/Github/eBOSC-py"
+# %matplotlib qt
+# cd "C:/Users/Lemon/Documents/Github/eBOSC-py"
 import BOSC 
 
-data_folder = Path("C:/Users/Lemon/Documents/Github/eBOSC-py")
-demodata = mne.read_epochs(data_folder / "demo_ebosc_py.fif")
+demodata = mne.read_epochs("C:/Users/Lemon/Documents/Github/eBOSC-py/demo_ebosc_py.fif")
 demodata = demodata.get_data()
 eegsignal = demodata[0,0,:]
 
@@ -44,3 +43,14 @@ cfg['F'] = F
 eBOSC = [];
 
 [eBOSC, pt, dt] = BOSC.getThresholds(cfg, B, eBOSC);
+
+#%% step 3: detect rhythms and calculate Pepisode
+test = []
+for ifreq in range(0,49):
+    b = B[ifreq,:]
+    detected = BOSC.detect(b,pt[ifreq],dt[ifreq],Fsample)
+    test.append(sum(detected))
+    
+#%%
+#%%
+BOSC.suppFigure(freqs,eBOSC,1)

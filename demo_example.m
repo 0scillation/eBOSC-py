@@ -41,7 +41,7 @@ TFR.trial{1} = B;
 
 % The next section applies both the power and the duration
 % threshold to detect individual rhythmic segments in the continuous signals.
-% detected = zeros(size(TFR_));
-% for f = 1:length(cfg.eBOSC.F)
-%     detected(f,:) = BOSC_detect(TFR_(f,:),pt(f),dt(f),cfg.eBOSC.fsample);
-% end; clear f
+detected = zeros(size(TFR.trial{1}));
+for f = 1:length(cfg.eBOSC.F)
+    detected(f,:) = BOSC_detect(TFR.trial{1}(f,:),pt(f),dt(f),cfg.eBOSC.fsample);
+end; clear f
