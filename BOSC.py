@@ -96,18 +96,18 @@ def detect(b,powthresh,durthresh,Fsample):
     
     if len(pos)==0 and len(neg) ==0:
       if all(x):
-          H = np.asarray(([1],[nT]))
+          H = np.asarray(([0],[nT-1]))
       else:
           H=[] # all episode or none
     elif len(pos)==0:
-        H = np.asarray(([1],neg)) # i.e., starts on an episode, then stops
+        H = np.asarray(([0],neg)) # i.e., starts on an episode, then stops
     elif len(neg)==0:
-        H = np.asarray((pos,[nT])) # starts, then ends on an ep.
+        H = np.asarray((pos,[nT-1])) # starts, then ends on an ep.
     else:
       if pos[0]>neg[0]:
-          pos=[1] + pos # we start with an episode
+          pos=[0] + pos # we start with an episode
       if neg[-1]<pos[-1]:
-          neg=neg + [nT] # we end with an episode
+          neg=neg + [nT-1] # we end with an episode
       H = np.asarray((pos,neg)) # NOTE: by this time, length(pos)==length(neg), necessarily
     # special-casing, making the H double-vector
     detected=np.zeros(b.shape)
@@ -163,8 +163,14 @@ def suppFigure(freqs,eBOSC,ielec):
     plt.rcParams.update({'font.size': 20})
 
 
-def thresholdWrapper(data,cfg):
-        # trial,elec,freq,tp (1, 4, 41, 2561)
+def thresholdWrapper(datax,cfg):
+    # trial,elec,freq,tp (1, 4, 41, 2561)
+    # check the data input whether it is MNE style.
+    if 'mne' in str(type(datax)):
+        data = datax.data
+    else:
+        data = datax;
+            
     bg_pow = np.zeros((data.shape[1],len(cfg['F'])))
     bg_log10_pow = np.zeros((data.shape[1],len(cfg['F'])))
     pv = np.zeros((data.shape[1],2))
@@ -198,8 +204,14 @@ def thresholdWrapper(data,cfg):
     eBOSC['fsample']  = cfg['fsample']
     return eBOSC, powerthres, durathres
 
-def detectWrapper(data,eBOSC):
+def detectWrapper(datax,eBOSC):
     # trial,elec,freq,tp (24, 4, 41, 2561)
+    # check the data input whether it is MNE style.
+    if 'mne' in str(type(datax)):
+            data = datax.data
+    else:
+            data = datax;
+            
     detected = np.zeros(data.shape)
 
     for ielec in range(data.shape[1]):
