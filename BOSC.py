@@ -162,7 +162,6 @@ def suppFigure(freqs,eBOSC,ielec):
     ax.grid(True, linestyle=':')
     plt.rcParams.update({'font.size': 20})
 
-
 def thresholdWrapper(datax,cfg):
     # trial,elec,freq,tp (1, 4, 41, 2561)
     # check the data input whether it is MNE style.
@@ -269,11 +268,11 @@ def getThresholds(cfg,TFR):
     fsample = cfg['fsample']
     F = cfg['F']
     
-    if len(TFR.shape) <3:
-        TFR = TFR[np.newaxis]
-        
     if len(excludePeak.shape) <2:
         excludePeak = excludePeak[np.newaxis]
+        
+    if len(TFR.shape) <3:
+        TFR = TFR[np.newaxis]
         
     if trial_background == 'all':
         trial_background = range(TFR.shape[0])
