@@ -125,7 +125,7 @@ def detect(b,powthresh,durthresh,Fsample):
               detected[H[0,h]:H[1,h]]=1
     # more than one "hole"
 
-    return detected
+    return detected,H
 
 def tfWrapper(data,freqs,Fsample,wavenumber):
      # trial,elec,freq,tp (1, 4, 41, 2561)
@@ -161,7 +161,6 @@ def suppFigure(freqs,eBOSC,ielec):
     # plt.xticks([2,4,8,16,32,64],[2,4,8,16,32,64])
     ax.grid(True, linestyle=':')
     plt.rcParams.update({'font.size': 20})
-
 
 def thresholdWrapper(datax,cfg):
     # trial,elec,freq,tp (1, 4, 41, 2561)
@@ -213,16 +212,20 @@ def detectWrapper(datax,eBOSC):
             data = datax;
             
     detected = np.zeros(data.shape)
-
+    bigH = []
     for ielec in range(data.shape[1]):
         pt = eBOSC['pt'][ielec,:]
-        dt = eBOSC['dt'][ielec,:]          
+        dt = eBOSC['dt'][ielec,:]     
+        dumelec= []
         for itrial in range(data.shape[0]):
+            dumfreq = []
             for ifreq in range(0,len(pt)):
                 b = data[itrial,ielec,ifreq,:]
-                detected[itrial,ielec,ifreq,:] = detect(b,pt[ifreq],dt[ifreq],eBOSC['fsample'])
-        
-    return detected
+                detected[itrial,ielec,ifreq,:],H= detect(b,pt[ifreq],dt[ifreq],eBOSC['fsample'])
+                dumfreq.append(H)
+            dumelec.append(dumfreq)
+        bigH.append(dumelec)
+    return detected,bigH
 #    This file is part of the extended Better OSCillation detection (eBOSC) library.
 #
 #    The eBOSC library is free software: you can redistribute it and/or modify
@@ -269,11 +272,11 @@ def getThresholds(cfg,TFR):
     fsample = cfg['fsample']
     F = cfg['F']
     
-    if len(TFR.shape) <3:
-        TFR = TFR[np.newaxis]
-        
     if len(excludePeak.shape) <2:
         excludePeak = excludePeak[np.newaxis]
+        
+    if len(TFR.shape) <3:
+        TFR = TFR[np.newaxis]
         
     if trial_background == 'all':
         trial_background = range(TFR.shape[0])
